@@ -2,14 +2,14 @@
 
 from pyPdf import PdfFileWriter, PdfFileReader
 
-def merge_pdf(new_filename, *path2pdf):
+def merge_pdf(new_filename, *pdfs):
     output = PdfFileWriter()
-    pdfs = []
     
-    for pdf in path2pdf:
-        pdfs.append(PdfFileReader(file(pdf, "rb")))
+    #for pdf in path2pdf:
+        #pdfs.append(PdfFileReader(file(pdf, "rb")))
         
-    for pdf in pdfs:
+    for p in pdfs:
+        pdf = PdfFileReader(file(p, "rb"))
         for page_num in range(pdf.getNumPages()):
             page = pdf.getPage(page_num)
             output.addPage(page)
@@ -19,6 +19,3 @@ def merge_pdf(new_filename, *path2pdf):
         output.write(outputStream)
         
 merge_pdf("test_name","JVogelLebenslauf.pdf","JVogelZeugnisse.pdf")
-
-# PdfFileReader(file("JVogelLebenslauf.pdf", "rb"))
-#input2 = PdfFileReader(file("JVogelZeugnisse.pdf", "rb"))
