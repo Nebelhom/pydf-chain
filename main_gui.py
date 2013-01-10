@@ -20,14 +20,12 @@ class PyDF_Chain:
         self.window = builder.get_object("main_window")
         
         # Merge PDF Tab
-        self.merge_store = builder.get_object("merge_pdf_liststore")
-        self.merge_treeview = builder.get_object("merge_pdf_treeview")
+        self.merge_model = builder.get_object("merge_pdf_liststore")
+        self.merge_view = builder.get_object("merge_pdf_treeview")
         # columns
-        self.merge_columns = [
-            builder.get_object("treeviewsource"),
-            builder.get_object("treeviewpassword"),
-            builder.get_object("treeviewpages")
-            ]
+        self.source_col = self.merge_view.get_column(0)
+        self.pw_col = self.merge_view.get_column(1)
+        self.numPage_col = self.merge_view.get_column(2)
         
         # connect the signals
         builder.connect_signals(self)
@@ -46,25 +44,27 @@ class PyDF_Chain:
 
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
+            
             pdfs = dialog.get_filenames()
+            pdf_iters = []
             for pdf in pdfs:
                 # add to the list store
                 info = pdf_ops.get_pdfinfo(pdf)
-                pdf_iter = self.merge_store.append([info["filepath"]," ",info["numPages"]])
-                
-                # display on the list
-                column = Gtk.TreeViewColumn()
+                pdf_iters.append(self.merge_model.append([info["filepath"]," ",info["numPages"]]))
                 
                 # Renderer
-                #source_file = Gtk.CellRendererText()
-                #password = Gtk.CellRendererText() # Change later to entry widget
-                #numPages = Gtk.CellRendererText() # Should render an int
-                                
+                source_render = Gtk.CellRendererText()
+                pw_render = Gtk.CellRendererText() # Change later to entry widget
+                numPage_render = Gtk.CellRendererText() # Should render an int
                 
-                #column0 = Gtk.TreeViewColumn("treeviewsource", source_file, text=0)
-                #column1 = Gtk.TreeViewColumn("treeviewpassword", password, text=0)
-                #column2 = Gtk.TreeViewColumn("treeviewpages", numPages, text=0)
-        
+                self.source_col.pack_start(source_render, True)
+                self.pw_col.pack_start(pw_render, False)
+                self.numPage_col.pack_start(numPage_render, False)
+                
+                self.source_col.add_attribute(source_render, "text", 0)
+                self.pw_col.add_attribute(pw_render, "text", 1)
+                self.numPage_col.add_attribute(numPage_render, "text", 2)
+                
         dialog.destroy()
         
     def add_filters(self, dialog):

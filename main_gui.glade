@@ -97,25 +97,30 @@
                     <property name="can_focus">True</property>
                     <property name="model">merge_pdf_liststore</property>
                     <child internal-child="selection">
-                      <object class="GtkTreeSelection" id="treeview-selection2"/>
+                      <object class="GtkTreeSelection" id="treeview-selection">
+                        <property name="mode">multiple</property>
+                      </object>
                     </child>
                     <child>
                       <object class="GtkTreeViewColumn" id="treeviewsource">
                         <property name="resizable">True</property>
                         <property name="title" translatable="yes">Source file</property>
                         <property name="expand">True</property>
+                        <property name="clickable">True</property>
                       </object>
                     </child>
                     <child>
                       <object class="GtkTreeViewColumn" id="treeviewpassword">
                         <property name="resizable">True</property>
                         <property name="title" translatable="yes">User Password</property>
+                        <property name="clickable">True</property>
                       </object>
                     </child>
                     <child>
                       <object class="GtkTreeViewColumn" id="treeviewpages">
                         <property name="resizable">True</property>
                         <property name="title" translatable="yes">No. of Pages</property>
+                        <property name="clickable">True</property>
                       </object>
                     </child>
                   </object>
