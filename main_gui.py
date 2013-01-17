@@ -2,6 +2,34 @@
 
 """
 up method still problematic. mostly to do with types
+
+Current finding:
+    
+    Gtk.TreeModel has a get_previous and get_next iter method
+    That way could insert elements etc.
+    
+    Gtk.TreeModel should be self.merge_model but that is shown as
+    Gtk.ListStore. In the doc this is the same concept.
+    
+    => explanation. I called it wrongly ;) ...didn't help so far 
+    
+    Traceback (most recent call last):
+  File "/home/nebelhom/SpyderWorkspace/pydf-chain/main_gui.py", line 146, in on_upbutton_clicked
+    self.merge_model.insert(row, prev_iter)
+  File "/usr/lib/python2.7/dist-packages/gi/overrides/Gtk.py", line 989, in insert
+    return self._do_insert(position, row)
+  File "/usr/lib/python2.7/dist-packages/gi/overrides/Gtk.py", line 970, in _do_insert
+    row, columns = self._convert_row(row)
+  File "/usr/lib/python2.7/dist-packages/gi/overrides/Gtk.py", line 822, in _convert_row
+    if len(row) != n_columns:
+TypeError: object of type 'TreeIter' has no len()
+
+New approach with Gtk.TreePath has a method called up and down.
+
+If that does what it should, then I am happy but it has strange
+behaviour. - it doesn't
+
+http://www.gtk.org/api/2.6/gtk/GtkTreeModel.html#gtk-tree-path-up
 """
 
 import sys
@@ -122,19 +150,52 @@ class PyDF_Chain:
         """
         # get the selected rows as paths
         sel_model, sel_rows = self.merge_view.get_selection().get_selected_rows()
-        print type(sel_rows[0])
-        if sel_rows[0] == 0 or len(self.merge_model) == 0:
-            pass
-        else:
-            for pos in sel_rows:
-                self.merge_model.swap(self.merge_model.get_iter(pos),
-                                      self.merge_model.get_iter(pos).prev())
+        # Make sure that not none or the first element is selected
+        if sel_rows[0] != Gtk.TreePath(0) and sel_rows != []: 
+            # store the treeiters from paths
+            iters = []
+            for row in sel_rows:
+                iters.append(self.merge_model.get_iter(row))
+            
+            # remove the rows (treeiters)
+            for i in iters:
+                if i is not None:
+                    prev_iter = self.merge_model.iter_previous(i)
+                    self.merge_model.insert(row, prev_iter)
         
     def on_downbutton_clicked(self, button):
         print "down"
         
     def on_savebutton_clicked(self, button):
-        print "save"
+        if len(self.merge_model) == 0:
+            dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.WARNING,
+            Gtk.ButtonsType.OK, "Please add pdf files to your list")
+            dialog.format_secondary_text(
+                "There are no valid pdf files to be merged.")
+            response = dialog.run()
+    
+            dialog.destroy()
+                
+        else:
+            dialog = Gtk.FileChooserDialog("Please choose a file", self.window, #builder.get_object("main_window"),
+                Gtk.FileChooserAction.SAVE,
+                (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                 Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
+    
+            self.add_pdf_filters(dialog)
+            response = dialog.run()
+            
+            # Still add test if file already exists
+            # and for if pdf not mentionend
+            if response == Gtk.ResponseType.OK:
+                save_path = dialog.get_filename()
+                
+                pdfs = []
+                for row in self.merge_model:
+                    pdfs.append(row[0])
+                pdf_ops.merge_pdf(save_path, pdfs)
+                    
+            dialog.destroy()
 
     def error_message(self, message):
         raise IOError(message)

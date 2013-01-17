@@ -4,9 +4,9 @@ import os
 
 from pyPdf import PdfFileWriter, PdfFileReader
 
-def merge_pdf(new_filename, *pdfs):
+def merge_pdf(new_filename, pdfs):
     """
-    Merges *pdfs into one pdf called new_filename.
+    Merges pdfs into one pdf called new_filename.
     """
     output = PdfFileWriter()
         
