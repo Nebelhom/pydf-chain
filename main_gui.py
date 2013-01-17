@@ -188,14 +188,29 @@ class PyDF_Chain:
             # Still add test if file already exists
             # and for if pdf not mentionend
             if response == Gtk.ResponseType.OK:
-                save_path = dialog.get_filename()
-                
-                pdfs = []
-                for row in self.merge_model:
-                    pdfs.append(row[0])
-                pdf_ops.merge_pdf(save_path, pdfs)
+                if os.path.exists(dialog.get_filename()):
+                    dlg = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.WARNING,
+                    Gtk.ButtonsType.OK_CANCEL, ("The file " + dialog.get_filename() + " already exists!"))
+                    dlg.format_secondary_text("Are you sure you want to overwrite?")
+                    yes_no = dlg.run()
+                    if yes_no == Gtk.ResponseType.CANCEL:
+                        pass
+                    else:
+                        self.merge_pdfs(dialog.get_filename())
+                    dlg.destroy()             
+                else:
+                    self.merge_pdfs(dialog.get_filename())
                     
             dialog.destroy()
+            
+    def merge_pdfs(self, save_path):
+        if not save_path.endswith(".pdf"):
+            save_path = save_path + ".pdf"               
+        pdfs = []
+        for row in self.merge_model:
+            pdfs.append(row[0])
+        pdf_ops.merge_pdf(save_path, pdfs)
+        
 
     def error_message(self, message):
         raise IOError(message)
