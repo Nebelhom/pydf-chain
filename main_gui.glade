@@ -279,10 +279,10 @@
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <child>
-              <object class="GtkLabel" id="password_label">
+              <object class="GtkLabel" id="owner_pw_label">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Password:</property>
+                <property name="label" translatable="yes">Owner Password:</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -291,7 +291,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEntry" id="password_entry">
+              <object class="GtkEntry" id="owner_pw_entry">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="invisible_char">•</property>
@@ -316,6 +316,43 @@
               </packing>
             </child>
             <child>
+              <object class="GtkLabel" id="user_pw_label">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">User Password:</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">3</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="user_pw_entry">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="invisible_char">•</property>
+                <property name="invisible_char_set">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">4</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkSeparator" id="separator2">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="padding">5</property>
+                <property name="position">5</property>
+              </packing>
+            </child>
+            <child>
               <object class="GtkLabel" id="encrypt_label">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
@@ -324,7 +361,7 @@
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">3</property>
+                <property name="position">6</property>
               </packing>
             </child>
             <child>
@@ -338,11 +375,12 @@
                 <property name="xalign">0</property>
                 <property name="active">True</property>
                 <property name="draw_indicator">True</property>
+                <property name="group">encrypt_radio_128</property>
               </object>
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">4</property>
+                <property name="position">7</property>
               </packing>
             </child>
             <child>
@@ -360,7 +398,7 @@
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">5</property>
+                <property name="position">8</property>
               </packing>
             </child>
             <child>
@@ -374,11 +412,12 @@
                 <property name="xalign">0</property>
                 <property name="active">True</property>
                 <property name="draw_indicator">True</property>
+                <property name="group">encrypt_radio_128</property>
               </object>
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">6</property>
+                <property name="position">9</property>
               </packing>
             </child>
           </object>

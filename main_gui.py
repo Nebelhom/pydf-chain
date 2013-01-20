@@ -1,35 +1,31 @@
 #!usr/bin/python
 
 """
-up method still problematic. mostly to do with types
+Get Progress bar working.
 
-Current finding:
-    
-    Gtk.TreeModel has a get_previous and get_next iter method
-    That way could insert elements etc.
-    
-    Gtk.TreeModel should be self.merge_model but that is shown as
-    Gtk.ListStore. In the doc this is the same concept.
-    
-    => explanation. I called it wrongly ;) ...didn't help so far 
-    
-    Traceback (most recent call last):
-  File "/home/nebelhom/SpyderWorkspace/pydf-chain/main_gui.py", line 146, in on_upbutton_clicked
-    self.merge_model.insert(row, prev_iter)
-  File "/usr/lib/python2.7/dist-packages/gi/overrides/Gtk.py", line 989, in insert
-    return self._do_insert(position, row)
-  File "/usr/lib/python2.7/dist-packages/gi/overrides/Gtk.py", line 970, in _do_insert
-    row, columns = self._convert_row(row)
-  File "/usr/lib/python2.7/dist-packages/gi/overrides/Gtk.py", line 822, in _convert_row
-    if len(row) != n_columns:
-TypeError: object of type 'TreeIter' has no len()
+Work on decrypting encrypted files then figure out why special chars
+like ( or ) are not working in adding files to the list...
 
-New approach with Gtk.TreePath has a method called up and down.
+Encrypted file that isn't decrypted gives following Traceback on merge
 
-If that does what it should, then I am happy but it has strange
-behaviour. - it doesn't
-
-http://www.gtk.org/api/2.6/gtk/GtkTreeModel.html#gtk-tree-path-up
+Traceback (most recent call last):
+  File "/home/nebelhom/SpyderWorkspace/pydf-chain/main_gui.py", line 256, in on_savebutton_clicked
+    self.merge_pdfs(dialog.get_filename())
+  File "/home/nebelhom/SpyderWorkspace/pydf-chain/main_gui.py", line 275, in merge_pdfs
+    pdf_ops.merge_pdf(save_path, pdfs, encryp, user_pw, owner_pw, lvl)
+  File "/home/nebelhom/SpyderWorkspace/pydf-chain/pdf_operations.py", line 15, in merge_pdf
+    for page_num in range(pdf.getNumPages()):
+  File "/usr/local/lib/python2.7/dist-packages/pyPdf/pdf.py", line 431, in getNumPages
+    self._flatten()
+  File "/usr/local/lib/python2.7/dist-packages/pyPdf/pdf.py", line 596, in _flatten
+    catalog = self.trailer["/Root"].getObject()
+  File "/usr/local/lib/python2.7/dist-packages/pyPdf/generic.py", line 480, in __getitem__
+    return dict.__getitem__(self, key).getObject()
+  File "/usr/local/lib/python2.7/dist-packages/pyPdf/generic.py", line 165, in getObject
+    return self.pdf.getObject(self).getObject()
+  File "/usr/local/lib/python2.7/dist-packages/pyPdf/pdf.py", line 655, in getObject
+    raise Exception, "file has not been decrypted"
+Exception: file has not been decrypted
 """
 
 import sys
@@ -59,6 +55,24 @@ class PyDF_Chain:
         self.pw_col = self.merge_view.get_column(1)
         self.numPage_col = self.merge_view.get_column(2)
         
+        # Password related Gtk.Text entries
+        self.owner_pw = builder.get_object("owner_pw_entry")
+        self.owner_pw.set_visibility(False)
+        self.user_pw = builder.get_object("user_pw_entry")
+        self.user_pw.set_visibility(False)
+        
+        # Encryption radio buttons
+        self.radio_none = builder.get_object("encrypt_radio_none")
+        #self.radio_none.set_label("None")
+        self.radio_128 = builder.get_object("encrypt_radio_128")
+        #self.radio_128.set_label("128")
+        self.radio_40 = builder.get_object("encrypt_radio_40")
+        #self.radio_40.set_label("40")
+        
+        self.radio_group = self.radio_128.get_group()
+        
+        self.radio_none.set_active(True)
+        
         # connect the signals
         builder.connect_signals(self)
         
@@ -87,7 +101,57 @@ class PyDF_Chain:
         self.source_col.add_attribute(source_render, "text", 0)
         self.pw_col.add_attribute(pw_render, "text", 1)
         self.numPage_col.add_attribute(numPage_render, "text", 2)
-    
+        
+    def get_selected_iters(self):
+        """
+        Get selected items and return respective iters
+        """
+        # see http://harishankar.org/blog/entry.php/python-gtk-howto-deleting-multiple-selected-items-from-a-gtk-treeview     
+        
+        # get the selected rows as paths
+        sel_model, sel_rows = self.merge_view.get_selection().get_selected_rows()
+
+        # store the treeiters from paths
+        iters = []
+        for row in sel_rows:
+            iters.append(self.merge_model.get_iter(row))
+            
+        return iters
+        
+    def get_active_radio(self, radio_group):
+        """
+        Returns the active radio_button's label.
+        """
+        for radio in radio_group:
+            if radio.get_active():
+                return radio.get_label()
+                
+    def get_encryption_details(self):
+        """
+        Checks if the user wants an encryption level.
+        
+        Returns parameters for either case.
+        
+        Factors:
+        - Radio button not None.
+        - Owner or user pw != ''
+        """
+        o_pw = self.owner_pw.get_text()
+        u_pw = self.user_pw.get_text()
+        radio_label = self.get_active_radio(self.radio_group)
+        
+        if (o_pw != '' or u_pw != '') and radio_label != 'None':
+            # from merge_pdf params            
+            # encryp=False, user_pw="", owner_pw=None, lvl=128
+            if o_pw == '':
+                return True, u_pw, None, int(radio_label)
+            if u_pw == '':
+                return True, o_pw, None, int(radio_label)
+            else:
+                return True, u_pw, o_pw, int(radio_label)
+        else:
+            return True, '', None, 128
+            
     def on_addbutton_clicked(self, button):
         """
         Add one or many pdf files to the treeview.
@@ -108,7 +172,11 @@ class PyDF_Chain:
             for pdf in pdfs:
                 # add to the list store
                 info = pdf_ops.get_pdfinfo(pdf)
-                self.merge_model.append([info["filepath"]," ",info["numPages"]])
+                if info != None:
+                    self.merge_model.append([info["filepath"],"",
+                                             info["numPages"]])
+                else:
+                    self.merge_model.append([pdf,"", 0])
             self.refresh_treeview(pdfs)
                 
         dialog.destroy()
@@ -126,15 +194,7 @@ class PyDF_Chain:
         """
         Remove one or many pdf files to the treeview.
         """
-        # see http://harishankar.org/blog/entry.php/python-gtk-howto-deleting-multiple-selected-items-from-a-gtk-treeview     
-        
-        # get the selected rows as paths
-        sel_model, sel_rows = self.merge_view.get_selection().get_selected_rows()
-
-        # store the treeiters from paths
-        iters = []
-        for row in sel_rows:
-            iters.append(self.merge_model.get_iter(row))
+        iters = self.get_selected_iters()
         
         # remove the rows (treeiters)
         for i in iters:
@@ -142,22 +202,24 @@ class PyDF_Chain:
                 self.merge_model.remove(i)
         
     def on_copybutton_clicked(self, button):
-        print "copy"
+        """
+        Creates a copy right behind each selection.
+        """
+        iters = self.get_selected_iters()
+        
+        for i in iters:
+            if i is not None:
+                # Need to supply list not Gtk.Treeiter
+                self.merge_model.append(self.merge_model[i][:]) 
         
     def on_upbutton_clicked(self, button):
         """
         Moves each selection one position up.
-        """
-        # get the selected rows as paths
-        sel_model, sel_rows = self.merge_view.get_selection().get_selected_rows()
+        """      
+        iters = self.get_selected_iters()
 
         # Make sure that not none or the first element is selected
-        if sel_rows != []:
-            # store the treeiters from paths
-            iters = []
-            for row in sel_rows:
-                iters.append(self.merge_model.get_iter(row))
-            
+        if iters != []:
             for i in iters:
                 prev_iter = self.merge_model.iter_previous(i)
                 if i is not None and prev_iter is not None:
@@ -167,24 +229,20 @@ class PyDF_Chain:
         """
         Moves each selection one position down.
         """
-        # get the selected rows as paths
-        sel_model, sel_rows = self.merge_view.get_selection().get_selected_rows()
+        
+        iters = self.get_selected_iters()
 
         # Make sure that something is selected
-        if sel_rows != []: 
-
-            # store the treeiters from paths
-            iters = []
-            for row in sel_rows:
-                iters.append(self.merge_model.get_iter(row))
-            iters.reverse()     # Avoid strange behaviour that way      
-            
+        if iters != []:      
             for i in iters:
                 next_iter = self.merge_model.iter_next(i)
                 if i is not None and next_iter is not None:
                     self.merge_model.swap(i, next_iter)
         
     def on_savebutton_clicked(self, button):
+        """
+        Saves the merged pdf file.
+        """
         if len(self.merge_model) == 0:
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.WARNING,
             Gtk.ButtonsType.OK, "Please add pdf files to your list")
@@ -203,14 +261,14 @@ class PyDF_Chain:
             self.add_pdf_filters(dialog)
             response = dialog.run()
             
-            # Still add test if file already exists
-            # and for if pdf not mentionend
+            # Check if file exists and if .pdf suffix
             if response == Gtk.ResponseType.OK:
                 if os.path.exists(dialog.get_filename()):
                     dlg = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.WARNING,
                     Gtk.ButtonsType.OK_CANCEL, ("The file " + dialog.get_filename() + " already exists!"))
                     dlg.format_secondary_text("Are you sure you want to overwrite?")
                     yes_no = dlg.run()
+                    
                     if yes_no == Gtk.ResponseType.CANCEL:
                         pass
                     else:
@@ -222,13 +280,21 @@ class PyDF_Chain:
             dialog.destroy()
             
     def merge_pdfs(self, save_path):
+        """
+        Merges the pdfs given in self.merge_model
+        
+        Utilises pdf_operations.merge_pdf function to achieve its goal.
+        """
+        # merge_pdf(new_filename, pdfs, encryp=False, user_pw="", 
+        # owner_pw=None, lvl=128)
         if not save_path.endswith(".pdf"):
             save_path = save_path + ".pdf"               
         pdfs = []
         for row in self.merge_model:
             pdfs.append(row[0])
-        pdf_ops.merge_pdf(save_path, pdfs)
-        
+            
+        encryp, user_pw, owner_pw, lvl = self.get_encryption_details()
+        pdf_ops.merge_pdf(save_path, pdfs, encryp, user_pw, owner_pw, lvl)
 
     def error_message(self, message):
         raise IOError(message)
