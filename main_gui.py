@@ -150,21 +150,39 @@ class PyDF_Chain:
         """
         # get the selected rows as paths
         sel_model, sel_rows = self.merge_view.get_selection().get_selected_rows()
+
         # Make sure that not none or the first element is selected
-        if sel_rows[0] != Gtk.TreePath(0) and sel_rows != []: 
+        if sel_rows != []:
             # store the treeiters from paths
             iters = []
             for row in sel_rows:
                 iters.append(self.merge_model.get_iter(row))
             
-            # remove the rows (treeiters)
             for i in iters:
-                if i is not None:
-                    prev_iter = self.merge_model.iter_previous(i)
-                    self.merge_model.insert(row, prev_iter)
-        
+                prev_iter = self.merge_model.iter_previous(i)
+                if i is not None and prev_iter is not None:
+                    self.merge_model.swap(i, prev_iter)
+                    
     def on_downbutton_clicked(self, button):
-        print "down"
+        """
+        Moves each selection one position down.
+        """
+        # get the selected rows as paths
+        sel_model, sel_rows = self.merge_view.get_selection().get_selected_rows()
+
+        # Make sure that something is selected
+        if sel_rows != []: 
+
+            # store the treeiters from paths
+            iters = []
+            for row in sel_rows:
+                iters.append(self.merge_model.get_iter(row))
+            iters.reverse()     # Avoid strange behaviour that way      
+            
+            for i in iters:
+                next_iter = self.merge_model.iter_next(i)
+                if i is not None and next_iter is not None:
+                    self.merge_model.swap(i, next_iter)
         
     def on_savebutton_clicked(self, button):
         if len(self.merge_model) == 0:

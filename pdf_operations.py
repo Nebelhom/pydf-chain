@@ -30,10 +30,6 @@ def get_pdfinfo(pdf_file):
     info["filepath"] = os.path.abspath(pdf_file)
     
     info.update(pdf.getDocumentInfo())
-    
     return info
     
     
-#print get_pdfinfo("JVogelLebenslauf.pdf")
-
-#merge_pdf("test_name","JVogelLebenslauf.pdf","JVogelZeugnisse.pdf")
