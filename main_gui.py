@@ -1,7 +1,8 @@
 #!usr/bin/python
 
 """
-Get Progress bar working.
+Get Progress bar working. Need to use a worker thread but the current
+approaches don't work
 
 then figure out why special chars
 like ( or ) are not working in adding files to the list...
@@ -307,12 +308,12 @@ class PyDF_Chain:
         just_run = error_dlg.run()
         error_dlg.destroy()
             
-    #def merge_pdfs(self, save_path):
+    def merge_pdfs(self, save_path):
         """
         Merges the pdfs given in self.merge_model
         
         Utilises pdf_operations.merge_pdf function to achieve its goal.
-        
+        """
         if not save_path.endswith(".pdf"):
             save_path = save_path + ".pdf"               
         pdfs = []
@@ -321,7 +322,7 @@ class PyDF_Chain:
             
         encryp, user_pw, owner_pw, lvl = self.get_encryption_details()
         pdf_ops.merge_pdf(save_path, pdfs, encryp, user_pw, owner_pw, lvl)
-        """ 
+         
         
     def pulse(self):
         self.progressbar.pulse()
