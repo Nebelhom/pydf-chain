@@ -4,14 +4,26 @@ import os
 
 from pyPdf import PdfFileWriter, PdfFileReader
 
+class PasswordError(Exception):
+    """Error when invalid password is given"""
+
 def merge_pdf(new_filename, pdfs, encryp=False, user_pw="", owner_pw=None, lvl=128):
     """
     Merges pdfs into one pdf called new_filename.
+    
+    pdf: list of tuples (path=string, password=string)
     """
     output = PdfFileWriter()
         
-    for p in pdfs:
-        pdf = PdfFileReader(open(p, "rb"))
+    for path, pw in pdfs:
+        pdf = PdfFileReader(open(path, "rb"))
+        
+        if pdf.isEncrypted:
+            try:
+                pdf.decrypt(pw)
+            except:
+                raise PasswordError
+        
         for page_num in range(pdf.getNumPages()):
             page = pdf.getPage(page_num)
             output.addPage(page)
@@ -40,3 +52,6 @@ def get_pdfinfo(pdf_file):
     else:
         return None
     
+if __name__ == "__main__":
+    #merge_pdf("merge_encrypt")
+    pass

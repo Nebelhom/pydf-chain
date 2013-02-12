@@ -3,47 +3,32 @@
 """
 Get Progress bar working.
 
-Work on decrypting encrypted files then figure out why special chars
+then figure out why special chars
 like ( or ) are not working in adding files to the list...
 
-Encrypted file that isn't decrypted gives following Traceback on merge
+=> This is a problem with pyPDF
 
-Traceback (most recent call last):
-  File "/home/nebelhom/SpyderWorkspace/pydf-chain/main_gui.py", line 256, in on_savebutton_clicked
-    self.merge_pdfs(dialog.get_filename())
-  File "/home/nebelhom/SpyderWorkspace/pydf-chain/main_gui.py", line 275, in merge_pdfs
-    pdf_ops.merge_pdf(save_path, pdfs, encryp, user_pw, owner_pw, lvl)
-  File "/home/nebelhom/SpyderWorkspace/pydf-chain/pdf_operations.py", line 15, in merge_pdf
-    for page_num in range(pdf.getNumPages()):
-  File "/usr/local/lib/python2.7/dist-packages/pyPdf/pdf.py", line 431, in getNumPages
-    self._flatten()
-  File "/usr/local/lib/python2.7/dist-packages/pyPdf/pdf.py", line 596, in _flatten
-    catalog = self.trailer["/Root"].getObject()
-  File "/usr/local/lib/python2.7/dist-packages/pyPdf/generic.py", line 480, in __getitem__
-    return dict.__getitem__(self, key).getObject()
-  File "/usr/local/lib/python2.7/dist-packages/pyPdf/generic.py", line 165, in getObject
-    return self.pdf.getObject(self).getObject()
-  File "/usr/local/lib/python2.7/dist-packages/pyPdf/pdf.py", line 655, in getObject
-    raise Exception, "file has not been decrypted"
-Exception: file has not been decrypted
 """
 
 import sys
 import os
+import threading
+from functools import partial
 
-from gi.repository import Gtk
+from gi.repository import Gtk, Gdk, GObject
 
 import pdf_operations as pdf_ops
 
 class PyDF_Chain:
     
-    def __init__(self):
+    def __init__(self):              
+        
         try:
             builder = Gtk.Builder()
             builder.add_from_file("main_gui.glade")
         except:
             self.error_message("Failed to load UI XML file: main_gui.glade")
-            sys.exit(1)        
+            sys.exit(1)
 
         self.window = builder.get_object("main_window")
         
@@ -73,8 +58,20 @@ class PyDF_Chain:
         
         self.radio_none.set_active(True)
         
+        # Progress
+        self.progressbar = builder.get_object("progressbar")
+        
         # connect the signals
         builder.connect_signals(self)
+        
+    def on_timeout(self, user_data):
+        """
+        Update value on the progress bar
+        """
+
+        # As this is a timeout function, return True so that it
+        # continues to get called
+        return True        
         
     def on_main_window_delete_event(self, *args):
         Gtk.main_quit()
@@ -88,8 +85,13 @@ class PyDF_Chain:
         
         # Renderer
         source_render = Gtk.CellRendererText()
+        
         pw_render = Gtk.CellRendererText()
         pw_render.set_property("editable", True)
+        pw_render.connect("edited", self.update_pw_entry)
+        
+       
+        
         numPage_render = Gtk.CellRendererText()
         
         # I have no idea how that works
@@ -102,6 +104,12 @@ class PyDF_Chain:
         self.pw_col.add_attribute(pw_render, "text", 1)
         self.numPage_col.add_attribute(numPage_render, "text", 2)
         
+    def update_pw_entry(self, widget, path, new_pw):
+        """
+        Updates the password entry
+        """
+        self.merge_model[path][1] = new_pw
+
     def get_selected_iters(self):
         """
         Get selected items and return respective iters
@@ -272,29 +280,52 @@ class PyDF_Chain:
                     if yes_no == Gtk.ResponseType.CANCEL:
                         pass
                     else:
-                        self.merge_pdfs(dialog.get_filename())
+                        try:
+                            self.merge_pdfs(dialog.get_filename())
+                            #WT = WorkerThread(self, dialog.get_filename())
+                            #WT.start()
+                        except:
+                            self.raise_error_dlg()
                     dlg.destroy()             
                 else:
-                    self.merge_pdfs(dialog.get_filename())
+                    try:
+                        self.merge_pdfs(dialog.get_filename())
+                        #WT = WorkerThread(self, dialog.get_filename())
+                        #WT.start()
+                    except:
+                        self.raise_error_dlg()
                     
             dialog.destroy()
             
-    def merge_pdfs(self, save_path):
+    def raise_error_dlg(self):
+        """
+        Raises an error dialog.
+        """
+        error_dlg = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.WARNING,
+        Gtk.ButtonsType.OK, ("An error has occurred. Process is aborted."))
+        error_dlg.format_secondary_text("Have you used an invalid password?")
+        just_run = error_dlg.run()
+        error_dlg.destroy()
+            
+    #def merge_pdfs(self, save_path):
         """
         Merges the pdfs given in self.merge_model
         
         Utilises pdf_operations.merge_pdf function to achieve its goal.
-        """
-        # merge_pdf(new_filename, pdfs, encryp=False, user_pw="", 
-        # owner_pw=None, lvl=128)
+        
         if not save_path.endswith(".pdf"):
             save_path = save_path + ".pdf"               
         pdfs = []
         for row in self.merge_model:
-            pdfs.append(row[0])
+            pdfs.append((row[0], row[1])) # path and pw
             
         encryp, user_pw, owner_pw, lvl = self.get_encryption_details()
         pdf_ops.merge_pdf(save_path, pdfs, encryp, user_pw, owner_pw, lvl)
+        """ 
+        
+    def pulse(self):
+        self.progressbar.pulse()
+        return self.still_working # 1 = repeat, 0 = stop
 
     def error_message(self, message):
         raise IOError(message)
@@ -303,6 +334,44 @@ class PyDF_Chain:
         self.window.show_all()
         Gtk.main()   
 
+    
+class WorkerThread(threading.Thread):
+
+    def __init__ (self, parent, argument, running=True):
+        threading.Thread.__init__(self)
+        
+        self.argument = argument
+        self.parent = parent
+        self.running = running
+ 
+    def run(self):
+        print "entering the thread"
+        while self.running:
+            self.merge_pdfs(self.argument)
+        print "finishing the thread"
+ 
+    def stop(self):
+        self = None
+        
+    def merge_pdfs(self, save_path):
+        """
+        Merges the pdfs given in self.merge_model
+        
+        Utilises pdf_operations.merge_pdf function to achieve its goal.
+        """
+        if not save_path.endswith(".pdf"):
+            save_path = save_path + ".pdf"               
+        pdfs = []
+        for row in self.parent.merge_model:
+            pdfs.append((row[0], row[1])) # path and pw
+            
+        encryp, user_pw, owner_pw, lvl = self.parent.get_encryption_details()
+        pdf_ops.merge_pdf(save_path, pdfs, encryp, user_pw, owner_pw, lvl)
+        
+        # ending the loop
+        self.running = False
+
 if __name__ == "__main__":
+    #GObject.threads_init()
     pydf_chain = PyDF_Chain()
     pydf_chain.run()
