@@ -1,10 +1,10 @@
 #!usr/bin/python
 
 """
-Get Progress bar working. Need to use a worker thread but the current
-approaches don't work
+- The error message should show the traceback if there is one, not just
+a generic message.
 
-then figure out why special chars
+- then figure out why special chars
 like ( or ) are not working in adding files to the list...
 
 => This is a problem with pyPDF
@@ -14,15 +14,16 @@ like ( or ) are not working in adding files to the list...
 import sys
 import os
 import threading
-from functools import partial
 
-from gi.repository import Gtk, Gdk, GObject
+from gi.repository import Gtk, GObject
 
 import pdf_operations as pdf_ops
 
 class PyDF_Chain:
     
     def __init__(self):              
+        
+        self.running = False # important variable for the progressbar & pulse
         
         try:
             builder = Gtk.Builder()
@@ -273,29 +274,33 @@ class PyDF_Chain:
             # Check if file exists and if .pdf suffix
             if response == Gtk.ResponseType.OK:
                 if os.path.exists(dialog.get_filename()):
+                    filename = os.path.split(dialog.get_filename())[-1]
                     dlg = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.WARNING,
-                    Gtk.ButtonsType.OK_CANCEL, ("The file " + dialog.get_filename() + " already exists!"))
+                    Gtk.ButtonsType.OK_CANCEL, ('The file "' + filename + '" already exists!'))
                     dlg.format_secondary_text("Are you sure you want to overwrite?")
                     yes_no = dlg.run()
                     
                     if yes_no == Gtk.ResponseType.CANCEL:
                         pass
+                    
                     else:
                         try:
-                            self.merge_pdfs(dialog.get_filename())
-                            #WT = WorkerThread(self, dialog.get_filename())
-                            #WT.start()
+                            self.t = threading.Thread(target=self.merge_pdfs,
+                                                      args=(dialog.get_filename(),)).start()
+                            GObject.timeout_add(100, self.pulse)
                         except:
-                            self.raise_error_dlg()
+                            #self.raise_error_dlg()
+                            raise
                     dlg.destroy()             
                 else:
                     try:
-                        self.merge_pdfs(dialog.get_filename())
-                        #WT = WorkerThread(self, dialog.get_filename())
-                        #WT.start()
+                        self.t = threading.Thread(target=self.merge_pdfs,
+                                                  args=(dialog.get_filename(),)).start()
+                        GObject.timeout_add(100, self.pulse)
                     except:
-                        self.raise_error_dlg()
-                    
+                        #self.raise_error_dlg()
+                        raise
+                
             dialog.destroy()
             
     def raise_error_dlg(self):
@@ -307,13 +312,16 @@ class PyDF_Chain:
         error_dlg.format_secondary_text("Have you used an invalid password?")
         just_run = error_dlg.run()
         error_dlg.destroy()
-            
+
     def merge_pdfs(self, save_path):
         """
         Merges the pdfs given in self.merge_model
         
         Utilises pdf_operations.merge_pdf function to achieve its goal.
         """
+        
+        self.running = True        
+        
         if not save_path.endswith(".pdf"):
             save_path = save_path + ".pdf"               
         pdfs = []
@@ -322,11 +330,12 @@ class PyDF_Chain:
             
         encryp, user_pw, owner_pw, lvl = self.get_encryption_details()
         pdf_ops.merge_pdf(save_path, pdfs, encryp, user_pw, owner_pw, lvl)
-         
+        
+        self.running = False
         
     def pulse(self):
         self.progressbar.pulse()
-        return self.still_working # 1 = repeat, 0 = stop
+        return self.running # 1 = repeat, 0 = stop
 
     def error_message(self, message):
         raise IOError(message)
@@ -335,44 +344,7 @@ class PyDF_Chain:
         self.window.show_all()
         Gtk.main()   
 
-    
-class WorkerThread(threading.Thread):
-
-    def __init__ (self, parent, argument, running=True):
-        threading.Thread.__init__(self)
-        
-        self.argument = argument
-        self.parent = parent
-        self.running = running
- 
-    def run(self):
-        print "entering the thread"
-        while self.running:
-            self.merge_pdfs(self.argument)
-        print "finishing the thread"
- 
-    def stop(self):
-        self = None
-        
-    def merge_pdfs(self, save_path):
-        """
-        Merges the pdfs given in self.merge_model
-        
-        Utilises pdf_operations.merge_pdf function to achieve its goal.
-        """
-        if not save_path.endswith(".pdf"):
-            save_path = save_path + ".pdf"               
-        pdfs = []
-        for row in self.parent.merge_model:
-            pdfs.append((row[0], row[1])) # path and pw
-            
-        encryp, user_pw, owner_pw, lvl = self.parent.get_encryption_details()
-        pdf_ops.merge_pdf(save_path, pdfs, encryp, user_pw, owner_pw, lvl)
-        
-        # ending the loop
-        self.running = False
-
 if __name__ == "__main__":
-    #GObject.threads_init()
+    GObject.threads_init()
     pydf_chain = PyDF_Chain()
     pydf_chain.run()
