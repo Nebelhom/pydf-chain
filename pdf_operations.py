@@ -19,9 +19,8 @@ def merge_pdf(new_filename, pdfs, encryp=False, user_pw="", owner_pw=None, lvl=1
         pdf = PdfFileReader(open(path, "rb"))
         
         if pdf.isEncrypted:
-            try:
-                pdf.decrypt(pw)
-            except:
+            decryption = pdf.decrypt(pw)
+            if decryption == 0:
                 raise PasswordError
         
         for page_num in range(pdf.getNumPages()):
@@ -51,7 +50,11 @@ def get_pdfinfo(pdf_file):
         return info
     else:
         return None
+        
+def throw():
+    raise PasswordError
     
 if __name__ == "__main__":
     #merge_pdf("merge_encrypt")
-    pass
+    if throw() == PasswordError:
+        print "huzzah"

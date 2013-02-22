@@ -4,6 +4,9 @@
 - The error message should show the traceback if there is one, not just
 a generic message.
 
+= New Problem: Catching an exception from a thread in the main thread.
+Found some ressources. look at them later.
+
 - then figure out why special chars
 like ( or ) are not working in adding files to the list...
 
@@ -271,8 +274,8 @@ class PyDF_Chain:
             self.add_pdf_filters(dialog)
             response = dialog.run()
             
-            # Check if file exists and if .pdf suffix
             if response == Gtk.ResponseType.OK:
+                # Check if file exists and if .pdf suffix
                 if os.path.exists(dialog.get_filename()):
                     filename = os.path.split(dialog.get_filename())[-1]
                     dlg = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.WARNING,
@@ -281,35 +284,33 @@ class PyDF_Chain:
                     yes_no = dlg.run()
                     
                     if yes_no == Gtk.ResponseType.CANCEL:
-                        pass
+                        yes_no.destroy()
+                        dlg.destroy()
+                        return
+                        
+                    dlg.destroy()
                     
-                    else:
-                        try:
-                            self.t = threading.Thread(target=self.merge_pdfs,
-                                                      args=(dialog.get_filename(),)).start()
-                            GObject.timeout_add(100, self.pulse)
-                        except:
-                            #self.raise_error_dlg()
-                            raise
-                    dlg.destroy()             
-                else:
-                    try:
-                        self.t = threading.Thread(target=self.merge_pdfs,
-                                                  args=(dialog.get_filename(),)).start()
-                        GObject.timeout_add(100, self.pulse)
-                    except:
-                        #self.raise_error_dlg()
-                        raise
-                
-            dialog.destroy()
-            
-    def raise_error_dlg(self):
+                try:
+                    self.t = threading.Thread(target=self.merge_pdfs,
+                                              args=(dialog.get_filename(),)).start()
+                    GObject.timeout_add(100, self.pulse)
+                except pdf_ops.PasswordError:
+                    print "Huzzah"
+                    self.raise_error_dlg("Invalid Password!")
+                except Exception, err:
+                    print "Nuzzuh"
+                    
+                #dlg.destroy() # Sub Dialog
+            self.running = False
+            dialog.destroy() # Main Dialog
+
+    def raise_error_dlg(self, traceback):
         """
         Raises an error dialog.
         """
-        error_dlg = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.WARNING,
+        error_dlg = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR,
         Gtk.ButtonsType.OK, ("An error has occurred. Process is aborted."))
-        error_dlg.format_secondary_text("Have you used an invalid password?")
+        error_dlg.format_secondary_text(traceback)
         just_run = error_dlg.run()
         error_dlg.destroy()
 
@@ -335,7 +336,7 @@ class PyDF_Chain:
         
     def pulse(self):
         self.progressbar.pulse()
-        return self.running # 1 = repeat, 0 = stop
+        return self.running # True = repeat, False = stop
 
     def error_message(self, message):
         raise IOError(message)
