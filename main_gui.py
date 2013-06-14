@@ -22,6 +22,8 @@ from gi.repository import Gtk, GObject
 
 import pdf_operations as pdf_ops
 
+HOMEDIR = os.path.dirname(os.path.abspath(__file__))
+
 class PyDF_Chain:
     
     def __init__(self):              
@@ -30,7 +32,7 @@ class PyDF_Chain:
         
         try:
             builder = Gtk.Builder()
-            builder.add_from_file("main_gui.glade")
+            builder.add_from_file(os.path.join(HOMEDIR, "main_gui.glade"))#"main_gui.glade")
         except:
             self.error_message("Failed to load UI XML file: main_gui.glade")
             sys.exit(1)
