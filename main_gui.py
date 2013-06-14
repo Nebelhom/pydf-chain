@@ -1,4 +1,4 @@
-#!usr/bin/python
+#!/usr/bin/env python
 
 """
 - The error message should show the traceback if there is one, not just
